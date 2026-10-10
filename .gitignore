@@ -66,3 +66,8 @@ coverage/
 *.tmp
 *.bak
 *.swp
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
