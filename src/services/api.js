@@ -1,7 +1,6 @@
-const API_BASE_URL = (
-  import.meta.env.VITE_API_URL ||
-  "https://smart-personal-finance-tracker-backend.onrender.com"
-).replace(/\/+$/, "");
+// Backend URL — fixed to the deployed Render service
+const API_BASE_URL =
+  "https://smart-personal-finance-tracker-backend.onrender.com";
 
 // Authentication token
 export const getAuthToken = () => {
@@ -29,7 +28,7 @@ export const setAuthSession = (authData) => {
   }
 };
 
-// Clear login session
+// Clear authentication session
 export const clearAuthSession = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("isLoggedIn");
@@ -70,13 +69,15 @@ export const apiFetch = async (endpoint, options = {}) => {
       headers,
     });
   } catch (error) {
+    console.error("Backend connection error:", error);
+
     throw new Error(
-      `Cannot connect to backend. Check backend URL, CORS configuration, and deployment. URL: ${url}`
+      "Cannot connect to backend. Please check backend availability and CORS configuration."
     );
   }
 
   const contentType = response.headers.get("content-type") || "";
-  let data;
+  let data = null;
 
   if (contentType.includes("application/json")) {
     data = await response.json().catch(() => null);
@@ -84,6 +85,7 @@ export const apiFetch = async (endpoint, options = {}) => {
     data = await response.text().catch(() => "");
   }
 
+  // Handle expired or invalid authentication
   if (
     (response.status === 401 || response.status === 403) &&
     !endpoint.includes("/auth/login") &&
