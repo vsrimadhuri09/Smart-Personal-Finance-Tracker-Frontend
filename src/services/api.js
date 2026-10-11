@@ -3,10 +3,12 @@ const API_BASE_URL = (
   "https://smart-personal-finance-tracker-backend.onrender.com"
 ).replace(/\/+$/, "");
 
+// Authentication token
 export const getAuthToken = () => {
   return localStorage.getItem("token");
 };
 
+// Save login/register session
 export const setAuthSession = (authData) => {
   if (authData.token) {
     localStorage.setItem("token", authData.token);
@@ -27,6 +29,7 @@ export const setAuthSession = (authData) => {
   }
 };
 
+// Clear login session
 export const clearAuthSession = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("isLoggedIn");
@@ -35,6 +38,7 @@ export const clearAuthSession = () => {
   localStorage.removeItem("fintrackUserId");
 };
 
+// Common API request function
 export const apiFetch = async (endpoint, options = {}) => {
   const normalizedEndpoint = endpoint.startsWith("/")
     ? endpoint
@@ -45,7 +49,10 @@ export const apiFetch = async (endpoint, options = {}) => {
     : `${API_BASE_URL}/api${normalizedEndpoint}`;
 
   const headers = {
-    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...(options.body !== undefined
+      ? { "Content-Type": "application/json" }
+      : {}),
     ...(options.headers || {}),
   };
 
@@ -55,41 +62,49 @@ export const apiFetch = async (endpoint, options = {}) => {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response;
 
-  const contentType = response.headers.get("content-type");
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (error) {
+    throw new Error(
+      `Cannot connect to backend. Check backend URL, CORS configuration, and deployment. URL: ${url}`
+    );
+  }
 
-  let data = null;
+  const contentType = response.headers.get("content-type") || "";
+  let data;
 
-  if (contentType && contentType.includes("application/json")) {
+  if (contentType.includes("application/json")) {
     data = await response.json().catch(() => null);
   } else {
     data = await response.text().catch(() => "");
   }
 
-  if (response.status === 401 || response.status === 403) {
-    if (
-      !endpoint.includes("/auth/login") &&
-      !endpoint.includes("/auth/register")
-    ) {
-      clearAuthSession();
+  if (
+    (response.status === 401 || response.status === 403) &&
+    !endpoint.includes("/auth/login") &&
+    !endpoint.includes("/auth/register")
+  ) {
+    clearAuthSession();
 
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
-      }
+    if (window.location.pathname !== "/login") {
+      window.location.href = "/login";
     }
   }
 
   if (!response.ok) {
     const errorMessage =
-      (data &&
-        typeof data === "object" &&
-        (data.message || data.error)) ||
-      (typeof data === "string" && data) ||
-      `Request failed with status ${response.status}`;
+      data &&
+      typeof data === "object" &&
+      (data.message || data.error)
+        ? data.message || data.error
+        : typeof data === "string" && data
+          ? data
+          : `Request failed with status ${response.status}`;
 
     throw new Error(errorMessage);
   }
@@ -258,7 +273,9 @@ export const investmentsApi = {
     goal = "WEALTH_CREATION"
   ) =>
     apiFetch(
-      `/investments/suggestions?riskLevel=${encodeURIComponent(riskLevel)}&investmentGoal=${encodeURIComponent(goal)}`
+      `/investments/suggestions?riskLevel=${encodeURIComponent(
+        riskLevel
+      )}&investmentGoal=${encodeURIComponent(goal)}`
     ),
 };
 
